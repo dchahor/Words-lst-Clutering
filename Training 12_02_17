@@ -1,0 +1,83 @@
+import pandas as pd
+import numpy as np
+from difflib import SequenceMatcher as SM
+import re
+
+deals=pd.read_excel('C:/Users/DAOUD/Desktop/My repo_to publish/Toyexample.xlsx')
+deals.Comments=deals.Comments.apply(str)
+
+#Define algorithms,
+#=========================================== S O U N D E X =========================================#
+def soundex(name, len=4):
+     # digits holds the soundex values for the alphabet
+    digits = '01230120002055012623010202'
+    sndx = ''
+    fc = ''
+
+    # translate alpha chars in name to soundex digits
+    for c in name.upper():
+        if c.isalpha():
+            if not fc: fc = c   # remember first letter
+            d = digits[ord(c)-ord('A')]
+            # duplicate consecutive soundex digits are skipped
+            if not sndx or (d != sndx[-1]):
+                sndx += d
+
+    # replace first digit with first alpha character
+    sndx = fc + sndx[1:]
+
+    # remove all 0s from the soundex code
+    sndx = sndx.replace('0','')
+
+    # return soundex code padded to len characters
+    return (sndx + (len * '0'))[:len]
+
+#=====================================================================================================#
+#deals = deals[:1000]
+import unicodedata
+def remove_acc(string):
+	return ''.join((c for c in unicodedata.normalize('NFD', string) if unicodedata.category(c) != 'Mn'))
+
+#=================================== CONVERT UNICODE =================================================#
+
+#To upper(or to lower)
+Comm=deals['Comments'].astype(str)
+Comm= Comm.apply(lambda x:remove_acc(x))
+Comm = Comm.apply(lambda x:x.upper())
+Comm = Comm.apply(lambda x: re.sub('/.*', '',x))
+Comm = Comm.apply(lambda x: re.sub(r'\d+', "",x))
+
+l=len(deals)
+#================================ Similarity matrix ============================
+Diss=np.zeros([len(deals),len(deals)])
+for i in range(len(deals)):
+    for j in range(i,len(deals)):
+        if len(Comm.iloc[i])> 3 :
+            Diss[i,j]=0.65*SM(None,Comm.iloc[i],Comm.iloc[j]).ratio()+0.35*SM(None,soundex(Comm.iloc[i]),soundex(Comm.iloc[j])).ratio()
+        else : Diss[i,j]=SM(None,Comm.iloc[i],Comm.iloc[j]).ratio()
+
+
+
+
+#=============================== Defining clusters =================================
+Cluster=np.zeros([len(Diss),len(Diss)])
+for i in range(len(Cluster)):
+    for j in range(i,len(Cluster)):
+        if Diss[i,j]>0.76 : 
+            Cluster[i,j]=i+1
+
+clas=np.zeros(len(deals))
+for j in range(len(Cluster)):
+    a=Cluster[:,j]
+    clas[j]=np.min(a[np.nonzero(a)])
+
+#=============================== Order by class ===================================
+deals['class']=clas
+New_comment=np.empty(len(deals), dtype = object)
+deals.sort(['class'], ascending=[True])
+for i in range(len(deals)):
+   New_comment[i]=Comm.iloc[int(deals['class'].iloc[i])-1]
+deals['Cpty_f']=New_comment
+
+deals = deals.sort(['Cpty_f'])
+
