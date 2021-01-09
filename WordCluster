@@ -3,7 +3,7 @@ import numpy as np
 from difflib import SequenceMatcher as SM
 import re
 
-deals=pd.read_excel('C:/Users/DAOUD/Desktop/My repo_to publish/Toyexample.xlsx')
+deals=pd.read_excel('~/My repo_to publish/Toyexample.xlsx')
 deals.Comments=deals.Comments.apply(str)
 
 #Define algorithms,
